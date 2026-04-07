@@ -1,5 +1,8 @@
-# Data (真實資料不進 git，合成資料留在 samples/)
+# Data (真實資料不進 git)
 data/
+
+# Data generator (合成資料用，不進 git)
+scripts/generate_data.py
 
 # Reports (notebook 產生的圖表和文字)
 reports/
