@@ -19,5 +19,7 @@ CONTENTION_MIN_ORDERS = 3                  # 窗口內最少幾單算 contention
 TOP_N_MODELS = 15                          # Device model 圖表顯示前幾名
 
 # Step 2 — System Anomaly
-IQR_MULTIPLIER = 3                         # per-device IQR 倍數（越大越嚴格）
+IQR_MULTIPLIER = 3                         # per-device/model IQR 倍數（越大越嚴格）
 QUEUE_STUCK_PERCENTILE = 99.0              # queue stuck 閾值取 non-contention 的第幾 percentile
+MIN_ORDERS_PER_DEVICE = 20                 # device 訂單 ≥ 此值才用 per-device IQR
+MIN_ORDERS_PER_MODEL = 30                  # model 訂單 ≥ 此值才用 per-model IQR（device 不夠時 fallback）
