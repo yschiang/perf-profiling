@@ -115,17 +115,42 @@ User → Browser → Order Created → Queue → Consumer picks up
 
 3. **Run All Cells**
 
+### 偵測方式：三層 Hierarchical Threshold
+
+```
+該 device 訂單 ≥ MIN_ORDERS_PER_DEVICE?
+  ├─ Yes → per-device IQR（最精準，同一台 device 的 baseline）
+  └─ No → 該 model 訂單 ≥ MIN_ORDERS_PER_MODEL?
+           ├─ Yes → per-model IQR（同型號 device 效能相近）
+           └─ No  → global P99（兜底）
+```
+
+少量訂單的 device 不會被無意義的 per-device IQR 誤判。
+
+### 異常類型標記
+
+每筆訂單會被標記 `anomaly_type`：
+
+| Label | 含義 | 觸發條件 |
+|-------|------|---------|
+| `normal` | 正常 | 未觸發任何閾值 |
+| `user_contention` | User 行為 | Step 1 標記的 contention |
+| `device_timeout` | Device 異常 | device_duration > 閾值 |
+| `db_lock` | DB 異常 | db_duration > 閾值 |
+| `queue_stuck` | Queue 異常 | queue_duration > P{percentile} |
+| `device_timeout, db_lock` | 多重異常 | 同時觸發多個條件 |
+
 ### 檢查重點
 
 | 輸出 | 看什麼 | 通過 | 需調整 |
 |------|--------|------|--------|
-| Queue stuck threshold | `Queue stuck threshold (P99...): Ns` | 與 Step 0 記下的 queue P99 一致 | 如果 threshold 很大（>300s）但 queue max 也差不多 → 可能不存在 queue stuck |
+| Threshold assignment | per-device / per-model / global 各幾台 | 三層都有分配 | 全部 global → MIN_ORDERS 太高 |
 | System anomalies 佔比 | `System anomalies: N (X%)` | 1% - 5% | > 10% → 提高 IQR_MULTIPLIER；< 1% → 降低 |
-| Type breakdown | queue_stuck / device_timeout / db_lock 各幾筆 | 3 種都有出現 | 只有一種 → 可能正常（系統只有一種問題），但要確認 |
-| IQR=0 devices | `IQR=0 devices: device=N/M` | < 20% of M | > 20% → 考慮改用固定 percentile threshold |
-| Anomaly type chart | 各類異常的數量 bar chart | 無特別 | 某類佔 > 90% → 系統可能只有該類問題 |
-| Timeline scatter | 紅點（異常）在時間軸上的分佈 | 散布均勻 | 集中在某段時間 → 可能是事件性故障，不是常態 |
-| Per-device anomaly rate | 哪些 device 異常率最高 | 分散 | 少數 device 異常率極高 → 這些可能是壞掉的機台（Step 4 會更深入） |
+| Type breakdown | queue_stuck / device_timeout / db_lock 各幾筆 | 3 種都有出現 | 只有一種 → 可能正常，但要確認 |
+| Label distribution | 全部訂單的 anomaly_type 分佈 | normal > 90% | normal < 80% → 閾值太寬鬆 |
+| IQR=0 devices | `IQR=0 (per-device): device=N/M` | < 20% of M | > 20% → IQR 方法不適用 |
+| Anomaly by segment | 4-panel: 異常按 loc / system / threshold / timeline 分佈 | 分散 | 集中在某 loc/system → 可能是局部問題 |
+| Per-device anomaly rate | 哪些 device 異常率最高 | 分散 | 少數 device 極高 → 可能是壞機台（Step 4 深入）|
 
 **抽查**：Notebook 會印出 20 筆異常 + 20 筆正常的訂單明細。
 - 看異常訂單：duration 是否明顯偏高？哪個 phase 造成的？
@@ -138,7 +163,7 @@ IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5
                 ← 更多異常    更少異常 →
 ```
 
-**產出**：`data/system_anomaly_flags.csv`
+**產出**：`data/system_anomaly_flags.csv`（包含 `order_id`, `is_system_anomaly`, `anomaly_type`）
 
 ---
 
