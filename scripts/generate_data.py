@@ -187,7 +187,7 @@ for i in range(NUM_ORDERS):
     record = {
         "device_id": did,
         "device_mode_name": attrs["device_mode_name"],
-        "order_created_at": gen_timestamp(base_time, i).strftime("%Y/%m/%d %I:%M:%S %p"),
+        "order_created_at": gen_timestamp(base_time, i).strftime("%Y-%m-%d %H:%M:%S.%f"),
         "order_id": gen_order_id(i),
         "file_count": file_count,
         "loc_1": attrs["loc_1"],
