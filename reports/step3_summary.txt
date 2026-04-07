@@ -1,0 +1,31 @@
+============================================================
+Step 3 — Bottleneck Breakdown
+============================================================
+
+Normal orders: 29,158
+Model R²: 0.999
+Params: PARALLELISM=4, bins=[0, 100, 1000, 2000, 100000]
+
+Dominant phase per group:
+  <100: Device (38.7%)
+  100-1000: Device (51.8%)
+  1000-2000: Device (52.4%)
+  2000+: Device (54.0%)
+
+Overall dominant: Device (49.2% avg)
+
+Phase proportion (%):
+           Queue    DB  Device  Inner Processing
+fc_group                                        
+<100        27.1  19.4    38.7              14.8
+100-1000     3.0  25.7    51.8              19.5
+1000-2000    0.9  26.8    52.4              20.0
+2000+        0.3  25.7    54.0              20.0
+
+Phase absolute means (seconds):
+           Queue      DB  Device  Inner Processing
+fc_group                                          
+<100        18.9    13.5    26.9              10.3
+100-1000    18.8   163.9   330.3             124.1
+1000-2000   18.9   579.8  1134.1             432.7
+2000+       18.1  1340.1  2817.4            1042.6

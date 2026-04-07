@@ -1,0 +1,16 @@
+============================================================
+Step 4 — Slow Device Drilldown
+============================================================
+
+Method: gap detection (gap=10.0s, ratio=3.3x)
+Slow devices: 8
+
+Slow Device List:
+  DEV-0189: median=14.0s, p95=20.0s, n=148, loc=FAB-C/AREA-3, sys=SYS-ALPHA
+  DEV-0006: median=13.5s, p95=21.0s, n=144, loc=FAB-A/AREA-2, sys=SYS-BETA
+  DEV-0057: median=13.0s, p95=21.0s, n=151, loc=FAB-C/None, sys=SYS-ALPHA
+  DEV-0062: median=13.0s, p95=21.0s, n=147, loc=FAB-C/AREA-3, sys=SYS-ALPHA
+  DEV-0163: median=13.0s, p95=20.0s, n=168, loc=FAB-B/None, sys=SYS-GAMMA
+  DEV-0028: median=13.0s, p95=21.0s, n=135, loc=FAB-A/AREA-1, sys=SYS-ALPHA
+  DEV-0035: median=13.0s, p95=21.0s, n=150, loc=FAB-B/AREA-1, sys=SYS-GAMMA
+  DEV-0070: median=13.0s, p95=22.0s, n=124, loc=FAB-A/AREA-2, sys=SYS-BETA
