@@ -1,43 +1,41 @@
 """
 Synthetic data generator for order performance profiling.
-Generates realistic data with embedded patterns:
-- Normal orders (majority)
-- System anomalies (same device, occasional extreme slowness)
-- User behavior anomalies (contention, burst orders)
-- Slow devices (a few devices consistently slower)
+Target distributions (from real data observation):
+  total_duration: P50=60, P75=200, P95=1000, P99=3000, max=100000
+  file_count:     P50=100, P75=300, P95=1000, P99=2000, max=60000
+  queue_duration:  P50=0, P75=1, P95=3, P99=8, max=60
+  db_duration:     P50=0, P75=0.1, P95=0.2, P99=0.8, max=1200
+  device_duration: P50=2, P75=4, P95=9, P99=15, max=500
 """
 
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import random
-import string
 
 np.random.seed(42)
 random.seed(42)
 
 NUM_ORDERS = 30000
 NUM_DEVICES = 2000
-NUM_SLOW_DEVICES = 40  # ~2% of devices are consistently slow
-SYSTEM_ANOMALY_RATE = 0.02  # 2% orders hit system anomalies
-USER_BURST_RATE = 0.03  # 3% orders are from user burst patterns
+NUM_SLOW_DEVICES = 40
+SYSTEM_ANOMALY_RATE = 0.02
+USER_BURST_RATE = 0.03
+PARALLELISM = 4
 
-# --- Dimension generators ---
-
+# --- Dimensions ---
 LOCATIONS_1 = ["FAB-A", "FAB-B", "FAB-C"]
 LOCATIONS_2 = ["AREA-1", "AREA-2", "AREA-3", None]
 SYSTEM_NAMES = ["SYS-ALPHA", "SYS-BETA", "SYS-GAMMA"]
-# ~50 device models (realistic: real data may have hundreds)
 _MODEL_PREFIXES = ["MDL", "EQP", "TYP", "SER"]
 _MODEL_SUFFIXES = [f"{i:03d}" for i in range(1, 51)]
 DEVICE_MODES = [f"{p}-{s}" for p, s in zip(
     np.random.choice(_MODEL_PREFIXES, 50), _MODEL_SUFFIXES
-)] + [None] * 10  # ~17% null rate
+)] + [None] * 10
 
 device_ids = [f"DEV-{i:04d}" for i in range(NUM_DEVICES)]
 slow_device_ids = set(random.sample(device_ids, NUM_SLOW_DEVICES))
 
-# Assign fixed attributes per device
 device_attrs = {}
 for did in device_ids:
     device_attrs[did] = {
@@ -48,73 +46,97 @@ for did in device_ids:
     }
 
 
-def gen_order_id(idx):
-    return f"ORD-{idx:06d}"
-
-
 def gen_timestamp(base, idx):
-    """Spread orders over ~30 days with realistic patterns."""
     offset = timedelta(
         days=random.uniform(0, 30),
-        hours=random.gauss(10, 4),  # peak around 10am
+        hours=random.gauss(10, 4),
         minutes=random.uniform(0, 60),
         seconds=random.uniform(0, 60),
     )
-    ts = base + offset
-    return ts
+    return base + offset
 
 
 def gen_file_count():
-    """96% < 2000, with a long tail."""
+    """P50=100, P75=300, P95=1000, P99=2000, max=60000"""
+    v = np.random.lognormal(mean=np.log(100), sigma=1.4)
+    return max(1, min(60000, int(v)))
+
+
+def gen_queue():
+    """P50=0, P75=1, P95=3, P99=8, max=60"""
     r = random.random()
-    if r < 0.30:
-        return random.randint(5, 50)
-    elif r < 0.60:
-        return random.randint(50, 300)
-    elif r < 0.85:
-        return random.randint(300, 1000)
+    if r < 0.52:
+        return 0.0
+    elif r < 0.78:
+        return round(random.uniform(0, 2), 1)
     elif r < 0.96:
-        return random.randint(1000, 2000)
+        return round(random.uniform(1, 5), 1)
+    elif r < 0.995:
+        return round(random.uniform(5, 15), 1)
     else:
-        return random.randint(2000, 5000)
+        return round(random.uniform(15, 60), 1)
 
 
-def gen_normal_durations(file_count, is_slow_device):
-    """Generate phase durations for a normal order."""
-    # Queue: usually short
-    queue = max(1, int(np.random.exponential(15)))
+def gen_device_duration(is_slow):
+    """Normal: P50=2, P75=4, P95=9, P99=15, max=500
+       Slow device: ~3-5x higher"""
+    if is_slow:
+        base = np.random.lognormal(mean=np.log(8), sigma=0.7)
+    else:
+        base = np.random.lognormal(mean=np.log(2), sigma=0.85)
+    return round(max(0.1, min(500, base)), 2)
 
-    # DB: scales mildly with file_count
-    db_avg = max(1, int(np.random.normal(2, 0.5)))
-    db_max = db_avg + random.randint(1, 5)
-    db_p95 = db_avg + random.randint(0, 3)
 
-    # Device: main variable, slower for slow devices
-    base_device = 3 if not is_slow_device else random.choice([8, 12, 15, 20])
-    device_avg = max(1, int(np.random.normal(base_device, 1.5)))
-    device_max = device_avg + random.randint(2, 15)
-    device_p95 = device_avg + random.randint(1, 8)
+def gen_db_duration():
+    """P50=0, P75=0.1, P95=0.2, P99=0.8, max=1200 (max from anomaly)"""
+    r = random.random()
+    if r < 0.55:
+        return 0.0
+    elif r < 0.80:
+        return round(random.uniform(0, 0.15), 2)
+    elif r < 0.96:
+        return round(random.uniform(0.1, 0.3), 2)
+    elif r < 0.995:
+        return round(random.uniform(0.3, 2.0), 2)
+    else:
+        return round(random.uniform(2, 10), 2)
 
-    # Inner processing: relatively fast
-    inner_avg = max(1, int(np.random.normal(1.5, 0.5)))
-    inner_max = inner_avg + random.randint(1, 4)
-    inner_p95 = inner_avg + random.randint(0, 2)
 
-    # Per file: composite
-    per_file_avg = db_avg + device_avg + inner_avg
-    per_file_max = db_max + device_max + inner_max
-    per_file_p95 = db_p95 + device_p95 + inner_p95
+def gen_inner_duration():
+    """Small: P50=0.5, P75=1, P95=2, P99=3"""
+    v = np.random.lognormal(mean=np.log(0.5), sigma=0.7)
+    return round(max(0, min(10, v)), 2)
 
-    # Total file duration (minutes) — with 4 threads parallelism
-    parallelism = 4
-    total_file_minutes = max(1, int((file_count * per_file_avg) / parallelism / 60))
 
-    # Total duration
-    total_seconds = queue + total_file_minutes * 60
+def gen_normal_order(file_count, is_slow):
+    queue = gen_queue()
+    device_avg = gen_device_duration(is_slow)
+    db_avg = gen_db_duration()
+    inner_avg = gen_inner_duration()
+
+    per_file_avg = device_avg + db_avg + inner_avg
+
+    # Max and P95 are higher than avg (tail of per-file distribution)
+    device_max = round(device_avg * random.uniform(2, 8), 2)
+    device_p95 = round(device_avg * random.uniform(1.5, 4), 2)
+    db_max = round(max(db_avg * random.uniform(2, 10), db_avg + 0.5), 2)
+    db_p95 = round(max(db_avg * random.uniform(1.5, 5), db_avg + 0.1), 2)
+    inner_max = round(inner_avg * random.uniform(2, 6), 2)
+    inner_p95 = round(inner_avg * random.uniform(1.5, 3), 2)
+    per_file_max = round(device_max + db_max + inner_max, 2)
+    per_file_p95 = round(device_p95 + db_p95 + inner_p95, 2)
+
+    # Total file duration (minutes)
+    total_file_seconds = (file_count * per_file_avg) / PARALLELISM
+    total_file_minutes = max(0, round(total_file_seconds / 60, 1))
+
+    # Total duration = queue + file processing + small overhead
+    overhead = random.uniform(2, 15)  # connection setup etc
+    total_seconds = round(queue + total_file_seconds + overhead, 1)
 
     return {
         "queue_duration_seconds": queue,
-        "per_file_duration_avg_seconds": per_file_avg,
+        "per_file_duration_avg_seconds": round(per_file_avg, 2),
         "per_file_duration_max_seconds": per_file_max,
         "per_file_duration_p95_seconds": per_file_p95,
         "device_duration_avg_seconds": device_avg,
@@ -132,37 +154,33 @@ def gen_normal_durations(file_count, is_slow_device):
 
 
 def inject_system_anomaly(durations):
-    """Randomly spike one or more phases."""
     anomaly_type = random.choice(["device_timeout", "db_lock", "queue_stuck"])
     if anomaly_type == "device_timeout":
-        spike = random.randint(300, 1800)  # 5-30 min spike
-        durations["device_duration_max_seconds"] += spike
-        durations["device_duration_avg_seconds"] += spike // 3
-        durations["total_duration_seconds"] += spike
+        spike = random.uniform(100, 500)
+        durations["device_duration_avg_seconds"] += round(spike, 2)
+        durations["device_duration_max_seconds"] += round(spike * 2, 2)
+        durations["total_duration_seconds"] += round(spike * durations.get("_file_count", 100) / PARALLELISM, 1)
     elif anomaly_type == "db_lock":
-        spike = random.randint(120, 600)
-        durations["db_duration_max_seconds"] += spike
-        durations["db_duration_avg_seconds"] += spike // 4
-        durations["total_duration_seconds"] += spike
+        spike = random.uniform(50, 1200)
+        durations["db_duration_avg_seconds"] += round(spike, 2)
+        durations["db_duration_max_seconds"] += round(spike * 2, 2)
+        durations["total_duration_seconds"] += round(spike * durations.get("_file_count", 100) / PARALLELISM, 1)
     elif anomaly_type == "queue_stuck":
-        spike = random.randint(600, 3600)  # 10-60 min stuck in queue
-        durations["queue_duration_seconds"] += spike
-        durations["total_duration_seconds"] += spike
+        spike = random.uniform(20, 60)
+        durations["queue_duration_seconds"] += round(spike, 1)
+        durations["total_duration_seconds"] += round(spike, 1)
     durations["_anomaly_type"] = anomaly_type
     return durations
 
 
 def inject_user_burst(durations):
-    """Simulate contention — queue and device times inflate."""
-    durations["queue_duration_seconds"] += random.randint(60, 300)
-    durations["device_duration_avg_seconds"] = int(durations["device_duration_avg_seconds"] * 1.5)
-    durations["total_duration_seconds"] = int(durations["total_duration_seconds"] * 1.3)
+    durations["device_duration_avg_seconds"] = round(durations["device_duration_avg_seconds"] * random.uniform(1.5, 3), 2)
+    durations["total_duration_seconds"] = round(durations["total_duration_seconds"] * random.uniform(1.3, 2), 1)
     durations["_anomaly_type"] = "user_burst"
     return durations
 
 
-# --- Main generation ---
-
+# --- Generate ---
 base_time = datetime(2026, 3, 1)
 records = []
 
@@ -172,10 +190,10 @@ for i in range(NUM_ORDERS):
     file_count = gen_file_count()
     is_slow = did in slow_device_ids
 
-    durations = gen_normal_durations(file_count, is_slow)
+    durations = gen_normal_order(file_count, is_slow)
     durations["_anomaly_type"] = "normal"
+    durations["_file_count"] = file_count
 
-    # Inject anomalies
     r = random.random()
     if r < SYSTEM_ANOMALY_RATE:
         durations = inject_system_anomaly(durations)
@@ -183,42 +201,48 @@ for i in range(NUM_ORDERS):
         durations = inject_user_burst(durations)
 
     anomaly_type = durations.pop("_anomaly_type")
+    durations.pop("_file_count", None)
 
     record = {
         "device_id": did,
         "device_mode_name": attrs["device_mode_name"],
         "order_created_at": gen_timestamp(base_time, i).strftime("%Y-%m-%d %H:%M:%S.%f"),
-        "order_id": gen_order_id(i),
+        "order_id": f"ORD-{i:06d}",
         "file_count": file_count,
         "loc_1": attrs["loc_1"],
         "loc_2": attrs["loc_2"],
         "system_name": attrs["system_name"],
         **durations,
-        # Hidden label for validation only (not in real data)
         "_label": anomaly_type,
         "_is_slow_device": is_slow,
     }
     records.append(record)
 
 df = pd.DataFrame(records)
-
-# Save with labels (for validation)
 df.to_csv("data/orders_with_labels.csv", index=False)
-
-# Save without labels (simulates real data)
 real_cols = [c for c in df.columns if not c.startswith("_")]
 df[real_cols].to_csv("data/orders.csv", index=False)
 
-print(f"Generated {len(df)} orders")
-print(f"Slow devices: {sorted(slow_device_ids)}")
+# --- Verify ---
+print(f"Generated {len(df)} orders, {df['device_id'].nunique()} devices")
 print(f"\nLabel distribution:")
-print(df["_label"].value_counts())
-print(f"\nFile count distribution:")
-print(df["file_count"].describe())
-print(f"\nTotal duration (seconds) distribution:")
-print(df["total_duration_seconds"].describe())
-print(f"\nSample slow orders (>3600s):")
-slow = df[df["total_duration_seconds"] > 3600]
-print(f"  Count: {len(slow)}")
-if len(slow) > 0:
-    print(f"  Max: {slow['total_duration_seconds'].max()}s = {slow['total_duration_seconds'].max()/3600:.1f}hr")
+print(df["_label"].value_counts().to_string())
+
+print(f"\n{'Metric':<35} {'P50':>8} {'P75':>8} {'P95':>8} {'P99':>8} {'Max':>10}")
+print("-" * 75)
+for col, target in [
+    ('total_duration_seconds',    'P50=60, P75=200, P95=1000, P99=3000, max=100000'),
+    ('file_count',                'P50=100, P75=300, P95=1000, P99=2000, max=60000'),
+    ('queue_duration_seconds',    'P50=0, P75=1, P95=3, P99=8, max=60'),
+    ('db_duration_avg_seconds',   'P50=0, P75=0.1, P95=0.2, P99=0.8, max=1200'),
+    ('device_duration_avg_seconds','P50=2, P75=4, P95=9, P99=15, max=500'),
+]:
+    pcts = df[col].quantile([0.5, 0.75, 0.95, 0.99])
+    print(f"{col:<35} {pcts[0.5]:>8.1f} {pcts[0.75]:>8.1f} {pcts[0.95]:>8.1f} {pcts[0.99]:>8.1f} {df[col].max():>10.1f}")
+
+print(f"\nTarget:")
+print(f"{'total_duration_seconds':<35} {'60':>8} {'200':>8} {'1000':>8} {'3000':>8} {'100000':>10}")
+print(f"{'file_count':<35} {'100':>8} {'300':>8} {'1000':>8} {'2000':>8} {'60000':>10}")
+print(f"{'queue_duration_seconds':<35} {'0':>8} {'1':>8} {'3':>8} {'8':>8} {'60':>10}")
+print(f"{'db_duration_avg_seconds':<35} {'0':>8} {'0.1':>8} {'0.2':>8} {'0.8':>8} {'1200':>10}")
+print(f"{'device_duration_avg_seconds':<35} {'2':>8} {'4':>8} {'9':>8} {'15':>8} {'500':>10}")
