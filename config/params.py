@@ -2,6 +2,10 @@
 # 所有 notebook 共用，改這裡一次生效。
 # 每個 notebook 用 exec(open('../config/params.py').read()) 載入。
 
+from pathlib import Path as _Path
+REPORTS_DIR = _Path('../reports')
+REPORTS_DIR.mkdir(exist_ok=True)
+
 DATA_PATH = '../data/orders.csv'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'   # order_created_at 的時間格式 (例: 2026-01-01 11:11:11.123456)
 PARALLELISM = 4                            # 每筆 order 的並行 thread 數（問開發團隊確認）
