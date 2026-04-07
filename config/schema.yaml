@@ -1,0 +1,118 @@
+fields:
+  - name: device_id
+    type: string
+    description: 設備編號
+    analysis_role: group_by, anomaly_detection
+
+  - name: device_mode_name
+    type: string
+    nullable: true
+    description: 設備型號名稱
+    analysis_role: group_by
+
+  - name: order_created_at
+    type: datetime
+    format: "YYYY/MM/DD hh:mm:ss A"
+    description: 下單時間
+    analysis_role: time_series, contention_detection
+
+  - name: order_id
+    type: string
+    description: 訂單編號
+    analysis_role: primary_key
+
+  - name: file_count
+    type: int
+    description: golden file 數量
+    analysis_role: group_by, correlation
+
+  - name: total_duration_seconds
+    type: int
+    description: 訂單總耗時（秒）
+    analysis_role: target_metric
+
+  - name: queue_duration_seconds
+    type: int
+    description: 在 queue 中等待的時間（秒）
+    analysis_role: phase_breakdown
+
+  - name: per_file_duration_avg_seconds
+    type: int
+    description: 每檔平均耗時（秒）
+    analysis_role: efficiency_metric
+
+  - name: per_file_duration_max_seconds
+    type: int
+    description: 每檔最大耗時（秒）
+    analysis_role: outlier_detection
+
+  - name: per_file_duration_p95_seconds
+    type: int
+    description: 每檔 P95 耗時（秒）
+    analysis_role: efficiency_metric
+
+  - name: device_duration_avg_seconds
+    type: int
+    description: Device SECS command 平均耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: device_duration_max_seconds
+    type: int
+    description: Device SECS command 最大耗時（秒）
+    analysis_role: outlier_detection
+
+  - name: device_duration_p95_seconds
+    type: int
+    description: Device SECS command P95 耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: db_duration_avg_seconds
+    type: int
+    description: DB 查詢平均耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: db_duration_max_seconds
+    type: int
+    description: DB 查詢最大耗時（秒）
+    analysis_role: outlier_detection
+
+  - name: db_duration_p95_seconds
+    type: int
+    description: DB 查詢 P95 耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: inner_processing_duration_avg_seconds
+    type: int
+    description: 內部處理平均耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: inner_processing_duration_max_seconds
+    type: int
+    description: 內部處理最大耗時（秒）
+    analysis_role: outlier_detection
+
+  - name: inner_processing_duration_p95_seconds
+    type: int
+    description: 內部處理 P95 耗時（秒）
+    analysis_role: phase_breakdown
+
+  - name: total_file_duration_minutes
+    type: int
+    description: 所有檔案處理總時間（分鐘）
+    analysis_role: target_metric
+
+  - name: loc_1
+    type: string
+    description: 地點分類 1
+    analysis_role: group_by
+
+  - name: loc_2
+    type: string
+    nullable: true
+    description: 地點分類 2
+    analysis_role: group_by
+
+  - name: system_name
+    type: string
+    description: 系統名稱
+    analysis_role: group_by
