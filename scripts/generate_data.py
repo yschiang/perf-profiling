@@ -17,8 +17,8 @@ np.random.seed(42)
 random.seed(42)
 
 NUM_ORDERS = 30000
-NUM_DEVICES = 200
-NUM_SLOW_DEVICES = 8  # ~4% of devices are consistently slow
+NUM_DEVICES = 2000
+NUM_SLOW_DEVICES = 40  # ~2% of devices are consistently slow
 SYSTEM_ANOMALY_RATE = 0.02  # 2% orders hit system anomalies
 USER_BURST_RATE = 0.03  # 3% orders are from user burst patterns
 
