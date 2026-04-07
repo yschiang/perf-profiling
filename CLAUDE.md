@@ -1,7 +1,7 @@
 # Order Performance Profiling Project
 
 ## 背景
-半導體製造環境的訂單處理系統 performance profiling。
+訂單處理系統 performance profiling。
 User 透過 browser 下單，order 進 queue，consumer 撿起後對 device 執行 file check。
 部分訂單耗時數小時（正常應 <30 分鐘），需找出瓶頸。
 
@@ -11,7 +11,7 @@ User -> Browser -> Order Created -> Queue -> Consumer picks up
   -> 每筆 order 對一個 device，每個 order 有 4 threads 並行處理
   -> 每個 file 的處理流程:
      1. DB side: 查詢 golden file list
-     2. Device side: 對 device 下 SECS command 取得 file
+     2. Device side: 對 device 下 device command 取得 file
      3. Inner process: 進行 file check
 ```
 
@@ -24,7 +24,7 @@ User -> Browser -> Order Created -> Queue -> Consumer picks up
 
 ### Layer 1a — 系統異常偵測
 同一 device 大部分訂單很快，但少數異常慢（排除 file_count 影響後）。
-可能原因：SECS timeout、DB lock、queue stuck。
+可能原因：device command timeout、DB lock、queue stuck。
 Action: 標記異常訂單，交 SRE 查修。
 
 ### Layer 1b — User 行為異常偵測

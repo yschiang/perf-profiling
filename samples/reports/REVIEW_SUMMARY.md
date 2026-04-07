@@ -2,6 +2,33 @@
 
 ## 總體評估
 
+### V2（修復後）
+
+所有 critical issues 已修復。修復前後對比：
+
+| Layer | Metric | Before | After |
+|-------|--------|--------|-------|
+| 1b User Burst | Precision | 3.6% | **88.0%** |
+| 1b User Burst | Recall | 2.4% | **96.5%** |
+| 1b User Burst | F1 | 1.9% | **92.0%** |
+| 1a System Anomaly | Precision | 34.9% | **99.6%** |
+| 1a System Anomaly | Recall | 100% | **100%** |
+| 1a System Anomaly | F1 | 51.7% | **99.8%** |
+| 3 Slow Devices | Accuracy | 8/10 (2 FP) | **8/8 PERFECT** |
+| 2 Model | R² | (not validated) | **0.999** |
+
+### 修復方法摘要
+
+1. **Layer 1b**: 改用 queue_duration 區間偵測 (80-500s) 取代 temporal contention window
+2. **Layer 1a**: 排除 user burst 後計算 per-device IQR×4 + queue stuck > 500s
+3. **Layer 3**: Gap detection 取代 nlargest(10)
+4. **Layer 2**: 新增 model validation (est_total vs actual scatter + R²)
+5. **執行順序**: 1b → 1a → 2 → 3 → 0
+
+---
+
+## V1 Review（修復前，保留供參考）
+
 分析框架（4 Layer）架構合理，但驗證結果顯示 **Layer 1b 幾乎無效、Layer 1a 精確率過低**，
 直接影響 Layer 2/3 的排除邏輯。以下按嚴重程度排列。
 

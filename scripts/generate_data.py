@@ -27,7 +27,12 @@ USER_BURST_RATE = 0.03  # 3% orders are from user burst patterns
 LOCATIONS_1 = ["FAB-A", "FAB-B", "FAB-C"]
 LOCATIONS_2 = ["AREA-1", "AREA-2", "AREA-3", None]
 SYSTEM_NAMES = ["SYS-ALPHA", "SYS-BETA", "SYS-GAMMA"]
-DEVICE_MODES = ["PRODUCTION", "ENGINEERING", "STANDBY", None]
+# ~50 device models (realistic: real data may have hundreds)
+_MODEL_PREFIXES = ["MDL", "EQP", "TYP", "SER"]
+_MODEL_SUFFIXES = [f"{i:03d}" for i in range(1, 51)]
+DEVICE_MODES = [f"{p}-{s}" for p, s in zip(
+    np.random.choice(_MODEL_PREFIXES, 50), _MODEL_SUFFIXES
+)] + [None] * 10  # ~17% null rate
 
 device_ids = [f"DEV-{i:04d}" for i in range(NUM_DEVICES)]
 slow_device_ids = set(random.sample(device_ids, NUM_SLOW_DEVICES))
@@ -198,11 +203,11 @@ for i in range(NUM_ORDERS):
 df = pd.DataFrame(records)
 
 # Save with labels (for validation)
-df.to_csv("/home/claude/perf-profiling/data/orders_with_labels.csv", index=False)
+df.to_csv("data/orders_with_labels.csv", index=False)
 
 # Save without labels (simulates real data)
 real_cols = [c for c in df.columns if not c.startswith("_")]
-df[real_cols].to_csv("/home/claude/perf-profiling/data/orders.csv", index=False)
+df[real_cols].to_csv("data/orders.csv", index=False)
 
 print(f"Generated {len(df)} orders")
 print(f"Slow devices: {sorted(slow_device_ids)}")
