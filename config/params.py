@@ -18,15 +18,17 @@ CONTENTION_WINDOW_MINUTES = 30             # 同 device 多單的時間窗口（
 CONTENTION_MIN_ORDERS = 3                  # 窗口內最少幾單算 contention
 TOP_N_MODELS = 15                          # Device model 圖表顯示前幾名
 
+# Step 2 — System Anomaly
+IQR_MULTIPLIER = 3                         # per-device/model IQR 倍數（越大越嚴格）
+QUEUE_STUCK_PERCENTILE = 99.0              # queue stuck 閾值取 non-contention 的第幾 percentile
+MIN_ORDERS_PER_DEVICE = 20                 # device 訂單 ≥ 此值才用 per-device IQR
+MIN_ORDERS_PER_MODEL = 30                  # model 訂單 ≥ 此值才用 per-model IQR（device 不夠時 fallback）
+MIN_DEVICE_THRESHOLD = 20                  # device_duration 閾值下限（秒），IQR 算出的值不得低於此
+MIN_DB_THRESHOLD = 5                       # db_duration 閾值下限（秒），避免 IQR≈0 時過度靈敏
+
 # Step 3 — SLA Rules: (max_file_count, max_duration_seconds, label)
 SLA_RULES = [
     (500, 1800, 'file<500 → 30min'),
     (2000, 3600, 'file<2000 → 60min'),
     (100000, 7200, 'all → 120min'),
 ]
-
-# Step 2 — System Anomaly
-IQR_MULTIPLIER = 3                         # per-device/model IQR 倍數（越大越嚴格）
-QUEUE_STUCK_PERCENTILE = 99.0              # queue stuck 閾值取 non-contention 的第幾 percentile
-MIN_ORDERS_PER_DEVICE = 20                 # device 訂單 ≥ 此值才用 per-device IQR
-MIN_ORDERS_PER_MODEL = 30                  # model 訂單 ≥ 此值才用 per-model IQR（device 不夠時 fallback）
