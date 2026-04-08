@@ -20,6 +20,7 @@ TOP_N_MODELS = 15                          # Device model 圖表顯示前幾名
 
 # Step 6 — Capacity Sizing
 BURST_MULTIPLIER = 10                      # 模擬某 loc_2 爆量到現在 peak 的幾倍
+CAPACITY_BUFFER = 1.3                      # 安全餘量（1.3 = 多留 30% buffer）
 
 # Step 2 — System Anomaly
 IQR_MULTIPLIER = 3                         # per-device/model IQR 倍數（越大越嚴格）
