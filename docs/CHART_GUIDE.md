@@ -2,6 +2,28 @@
 
 每個步驟產出多張圖表，以下標註 **Key Chart**（最重要、優先看的）。
 
+## 生產邏輯
+
+```
+data/orders.csv
+  → Step 0 (健檢)
+  → Step 1 (EDA + contention) → data/user_anomaly_flags.csv
+  → Step 2 (系統異常)          → data/system_anomaly_flags.csv
+  → Step 3 (瓶頸拆解，排除異常後)
+  → Step 4 (慢機台，排除異常後)
+  → Step 5 (Dashboard，整合全部)
+  → Step 6 (Capacity Sizing)
+```
+
+每個 step 產出圖表到 `reports/` + 文字摘要到 `reports/stepN_summary.txt`。
+
+## 怎麼看表格
+
+| 欄位 | 意義 |
+|------|------|
+| **Chart** | 檔名，在 `reports/` 目錄下 |
+| **Key?** | ⭐ = 最重要、優先看的圖。沒標的是補充性質 |
+
 ---
 
 ## Step 1 — EDA + Contention
