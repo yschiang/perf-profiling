@@ -203,6 +203,24 @@ IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5
 - 邊界選在 round number 且每組 ≥ 200 筆
 - 例：如果 P75=500, P95=1500 → `[0, 100, 500, 1500, 3000]`
 
+**SLA 達成率**（新增）：
+
+| 輸出 | 看什麼 | 意義 |
+|------|--------|------|
+| SLA Compliance table | 每條 SLA rule 的 violation rate | > 5% violation → 該 SLA 目標需要關注 |
+| SLA by location | 各 loc 的 violation rate | 某 loc 偏高 → 該地點可能有系統問題 |
+
+SLA 規則在 `config/params.py` 的 `SLA_RULES` 定義，格式：`(max_file_count, max_duration_seconds, label)`
+
+**Tail Order 分析**（新增）：
+
+| 輸出 | 看什麼 | 意義 |
+|------|--------|------|
+| Tail vs Normal file_count | tail 的 file_count 是否偏大 | 是 → 慢訂單主要是因為 file 多（預期） |
+| Tail vs Normal device_dur | tail 的 device_duration 是否偏大 | 是 → 慢訂單的 device 也比較慢（可能是慢機台）|
+| Tail rate by location | 各 loc 的 tail 佔比 | 某 loc > 5% → 該地點效能較差 |
+| Top models in tail | 哪些 model 貢獻最多 tail | 集中在特定 model → 該型號效能差 |
+
 ---
 
 ## Step 4 — 慢機台下鑽
@@ -227,6 +245,13 @@ IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5
 | 慢機台 order count | 每台的 `n=` 標註 | 每台 ≥ 20 筆 | < 20 → 樣本太少，可能是 noise |
 | Facet Analysis (4 panels) | 各切面（loc_1/loc_2/system/model）的 median 差異 | max/min ratio ≈ 1.0 = 無差異 | ratio > 1.5 → 不只是 device 問題，可能是 location 或 system 問題 |
 | Slow Device Phase Breakdown | 慢機台上 4 phase 的佔比 | Device（紅色）佔主導 | DB 也很大 → 慢機台可能連 DB 也慢（同 location 的 DB 有問題？）|
+
+**Device 忙碌度 × 效能**（新增）：
+
+| 輸出 | 看什麼 | 意義 |
+|------|--------|------|
+| Location × Hour heatmap | 各 loc 在各小時的 avg device_duration | 某 loc 在忙碌時段顏色變深 → 負載造成效能下降 |
+| Busyness vs Performance scatter | daily orders/device vs avg device_dur | 正相關 → 忙碌確實造成變慢；無相關 → 效能穩定 |
 
 **交付**：將慢機台清單（device_id, median duration, location, system）交設備團隊確認
 
@@ -264,6 +289,7 @@ IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5
 | `PARALLELISM` | `config/params.py` | 向開發團隊確認，不要猜 |
 | `FILE_COUNT_BINS` | `config/params.py` | 依資料分佈調整（Step 3 決定後改一次） |
 | `GAP_MIN_RATIO` | `config/params.py` | 提高 → 更嚴格（更少慢機台） |
+| `SLA_RULES` | `config/params.py` | `[(max_fc, max_dur_sec, label), ...]` 定義 SLA 目標 |
 
 ---
 
