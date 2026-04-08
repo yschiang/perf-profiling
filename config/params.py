@@ -18,6 +18,9 @@ CONTENTION_WINDOW_MINUTES = 30             # 同 device 多單的時間窗口（
 CONTENTION_MIN_ORDERS = 3                  # 窗口內最少幾單算 contention
 TOP_N_MODELS = 15                          # Device model 圖表顯示前幾名
 
+# Step 6 — Capacity Sizing
+BURST_MULTIPLIER = 10                      # 模擬某 loc_2 爆量到現在 peak 的幾倍
+
 # Step 2 — System Anomaly
 IQR_MULTIPLIER = 3                         # per-device/model IQR 倍數（越大越嚴格）
 QUEUE_STUCK_PERCENTILE = 99.0              # queue stuck 閾值取 non-contention 的第幾 percentile
