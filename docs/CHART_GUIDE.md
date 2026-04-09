@@ -32,9 +32,10 @@ data/orders.csv
 
 | Chart | Key? | 說明 | 生產邏輯 |
 |-------|------|------|---------|
+| **`step1_bin_statistics.png`** | ⭐ | 按 order 的 file_count 分 bin 統計總表 | `pd.cut(file_count, FILE_COUNT_BINS)` groupby → orders/orders%/unique devices/devices%/file_count median+mean/total_dur median+P95+std/device_dur median+P95/db_dur median/queue_dur median。Total row 只顯示 counts/pct，export CSV + table image |
 | **`step1_user_wait_time.png`** | ⭐ | 使用者實際等待時間分佈 | `total_file_duration_minutes` histogram + `total_duration_seconds` histogram + file_count scatter |
-| **`step1_duration_trend.png`** | ⭐ | 每日 P50/P95/P99 趨勢 | `total_duration_seconds` groupby date → quantile(0.5/0.95/0.99) |
-| `step1_phase_distributions.png` | | 四段耗時分佈 | `queue/device/db/inner_duration_avg_seconds` 各自 histogram |
+| **`step1_duration_trend.png`** | ⭐ | 每日 P50/P95/P99 趨勢 + 下方數值表 | `total_duration_seconds` groupby date → quantile(0.5/0.95/0.99)，轉分鐘。上方折線+volume bar，下方每日 P50/P95/P99/Volume table。`TREND_LAST_N_DAYS` 控制顯示天數 |
+| **`step1_phase_distributions.png`** | ⭐ | 四段耗時分佈（共用 x-axis，一眼看出瓶頸 phase） | `queue/device/db/inner_duration_avg_seconds` 各自 histogram，共用 x-axis 上限（4 欄 P99×1.5 取最大值） |
 | `step1_usage_heatmap.png` | | loc × time 熱力圖 | `loc_2` × `hour`/`dow`/`date` groupby count heatmap |
 | `step1_table_loc*.png` | | loc × time 數字表 | 同上，render 成 table image |
 | `step1_contention_count.png` | | contention 偵測分佈 | 同 device 在 [t, t+WINDOW] 內的 order count histogram |
@@ -57,12 +58,13 @@ data/orders.csv
 
 ## Step 3 — Bottleneck Breakdown
 
-依賴：`data/user_anomaly_flags.csv` + `data/system_anomaly_flags.csv`（排除異常後分析）
+依賴：`data/user_anomaly_flags.csv` + `data/system_anomaly_flags.csv`
+資料範圍：排除 system anomaly + user contention。目的：看**系統正常運作時**的瓶頸在哪。一次性 spike（device timeout 500s、DB lock 1200s）會扭曲 phase proportion，需排除。
 
 | Chart | Key? | 說明 | 生產邏輯 |
 |-------|------|------|---------|
 | **`step3_phase_breakdown.png`** | ⭐ | phase 佔比 — 瓶頸在哪？ | `est_phase = phase_avg × file_count / PARALLELISM`，groupby `fc_group` stacked bar |
-| **`step3_tail_analysis.png`** | ⭐ | P95+ 慢訂單特徵 | `total_duration > P95` 的訂單 vs 其餘，比較 file_count/device_dur/loc/model |
+| **`step3_tail_analysis.png`** | ⭐ | P95+ 慢訂單為什麼慢？(2×2) | **左上 File Count**：tail(橘) vs normal(藍) density — 橘色明顯偏右=file 多是慢的主因，重疊=不是主因。**右上 Device Duration**：同理 — 偏右=device 慢是主因。兩張一起看：判斷慢訂單是「file 太多」還是「device 太慢」或兩者皆有。**左下 Tail Rate by loc_1**：各 location 的 tail 佔比，灰虛線=預期 5%，超過=該 location 產生更多慢訂單。**右下 Top 10 Models**：哪些 device model 貢獻最多 tail orders |
 | `step3_model_validation.png` | | phase model 驗證 | `est_total` vs `total_duration_seconds` scatter + R² |
 | `step3_duration_vs_filecount.png` | | duration vs file_count | scatter + polyfit trend line |
 | `step3_sla_compliance.png` | | SLA 達成率 | 按 `SLA_RULES` 每條計算 `total_duration > threshold` 的 violation rate |
@@ -72,13 +74,16 @@ data/orders.csv
 
 ## Step 4 — Slow Device
 
-依賴：同 Step 3（排除異常後的正常訂單）
+依賴：`data/user_anomaly_flags.csv`（僅排除 user contention）
+資料範圍：全部訂單，僅排除 user contention。目的：看每台 device 的**完整表現**。Step 2 標為 anomaly 的訂單可能是 slow device 的正常高值，排除會壓低 median 導致漏掉 slow device。
 
 | Chart | Key? | 說明 | 生產邏輯 |
 |-------|------|------|---------|
 | **`step4_device_ranking.png`** | ⭐ | device 排名 — 慢機台 | `device_duration_avg` groupby `device_id` → median，sort desc，gap detection 或 fallback P99 |
-| **`step4_device_utilization.png`** | ⭐ | 忙碌度 vs 效能 | loc×hour heatmap: avg `device_duration`；scatter: daily orders/device vs avg device_dur |
+| `step4_device_utilization.png` | | 忙碌度 vs 效能 | loc×hour heatmap: avg `device_duration`；scatter: daily orders/device vs avg device_dur |
 | `step4_facet_analysis.png` | | 切面分析 | `device_duration_avg` groupby `loc_1`/`loc_2`/`system_name`/`device_mode_name` → median bar |
+| **`step4_usage_vs_performance.png`** | ⭐ | 使用量 × 效能 scatter | X=device 訂單數(=user 使用量), Y=device_dur median, 紅=slow device。四象限：右上=又常用又慢→Priority fix，左上=低使用量+慢→影響小，右下=常用+快→OK |
+| **`step4_usage_cross_analysis.png`** | ⭐ | 使用量 × 效能交叉分析表 | 按 usage(High/Low) × speed(Fast/Slow) 四象限統計 devices 數、total orders、duration median、priority 等級。紅底=Priority（又常用又慢）|
 | `step4_slow_device_breakdown.png` | | 慢機台 phase breakdown | 慢機台 orders 的 `est_queue/db/device/inner` stacked barh |
 
 ---

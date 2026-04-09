@@ -1,0 +1,113 @@
+# Device Summary Schema — data/device_summary.csv
+# 以 device 為中心，每台 device 一行，整合 Step 1-4 分析結果
+# 由 Step 4 notebook 產出
+
+fields:
+  # --- Identity ---
+  - name: device_id
+    type: string
+    description: 設備編號（= user，device 綁定 user）
+
+  - name: device_mode_name
+    type: string
+    nullable: true
+    description: 設備型號名稱
+
+  - name: loc_1
+    type: string
+    description: 地點分類 1（FAB）
+
+  - name: loc_2
+    type: string
+    nullable: true
+    description: 地點分類 2（AREA）
+
+  - name: system_name
+    type: string
+    description: 系統名稱
+
+  # --- Volume ---
+  - name: order_count
+    type: int
+    description: 訂單數（= user 使用頻率）
+
+  - name: file_count_median
+    type: int
+    description: 該 device 的 file_count 中位數（device 上的 file 數通常不太變化）
+
+  - name: file_count_p95
+    type: int
+    description: 該 device 的 file_count P95
+
+  - name: file_count_bin
+    type: string
+    description: file_count_median 所屬的分組（依 FILE_COUNT_BINS 參數）
+
+  # --- Total Order Duration ---
+  - name: total_dur_median
+    type: float
+    description: 整筆訂單耗時中位數（秒）
+
+  - name: total_dur_p95
+    type: float
+    description: 整筆訂單耗時 P95（秒）
+
+  # --- Queue Duration ---
+  - name: queue_dur_median
+    type: float
+    description: queue 等待時間中位數（秒）。一次性，不乘 file_count
+
+  # --- Device Duration (per-file avg) ---
+  - name: device_dur_median
+    type: float
+    description: device command per-file 平均耗時中位數（秒）
+
+  - name: device_dur_p95
+    type: float
+    description: device command per-file 平均耗時 P95（秒）
+
+  - name: device_dur_mean
+    type: float
+    description: device command per-file 平均耗時的 mean（秒），用於計算 CV
+
+  - name: device_dur_std
+    type: float
+    description: device command per-file 平均耗時的標準差（秒）
+
+  - name: device_dur_cv
+    type: float
+    description: 效能變異係數（std / mean）。越高越不穩定。低 CV + 慢 = 一致性慢（硬體問題）；高 CV = 間歇性問題
+
+  # --- DB / Inner Duration (per-file avg) ---
+  - name: db_dur_median
+    type: float
+    description: DB 查詢 per-file 平均耗時中位數（秒）
+
+  - name: inner_dur_median
+    type: float
+    description: inner processing per-file 平均耗時中位數（秒），通常極小（毫秒級）
+
+  # --- Labels ---
+  - name: is_slow_device
+    type: boolean
+    description: Step 4 gap detection / fallback 標記的慢機台
+
+  - name: is_high_usage
+    type: boolean
+    description: 訂單數 ≥ P(HIGH_USAGE_PERCENTILE)，高使用量 device
+
+  - name: priority
+    type: string
+    description: "交叉分析結果：Priority（高使用量+慢）/ Monitor（低使用量+慢）/ OK"
+
+  - name: system_anomaly_count
+    type: int
+    description: 該 device 被 Step 2 標為 system anomaly 的訂單數
+
+  - name: system_anomaly_rate
+    type: float
+    description: system_anomaly_count / order_count × 100（%）
+
+  - name: user_contention_count
+    type: int
+    description: 該 device 被 Step 1 標為 user contention 的訂單數

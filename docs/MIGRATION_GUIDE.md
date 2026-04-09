@@ -21,7 +21,7 @@ User → Browser → Order Created → Queue → Consumer picks up
 
 ## 開始前
 
-1. 將真實資料放到 `data/orders.csv`（欄位需與 `config/schema.yaml` 一致）
+1. 將真實資料放到 `data/orders.csv`（欄位需與 `config/schema_orders.yaml` 一致）
 2. 編輯 **`config/params.py`** — 所有參數集中在此，改一次全部 notebook 生效：
    - `DATA_PATH`：資料路徑
    - `DATETIME_FORMAT`：`order_created_at` 的時間格式
@@ -40,7 +40,7 @@ User → Browser → Order Created → Queue → Consumer picks up
 
 | 項目 | 看什麼 | 通過條件 | 不通過代表什麼 |
 |------|--------|---------|---------------|
-| Schema 驗證 | 欄位是否與 schema.yaml 一致 | 全部存在 | 資料欄位不匹配 |
+| Schema 驗證 | 欄位是否與 schema_orders.yaml 一致 | 全部存在 | 資料欄位不匹配 |
 | order_id | 重複數量 | = 0 | 資料有 dup，需先 dedup |
 | null 欄位 | 各欄位 null 比例 | device_mode_name, loc_2 可有 null，其他 = 0 | 資料不完整，確認 ETL |
 | 負數 duration | 各 duration 欄位 < 0 的筆數 | = 0 | 資料異常，確認來源 |
@@ -117,8 +117,9 @@ User → Browser → Order Created → Queue → Consumer picks up
 
 1. 開啟 `notebooks/step2_system_anomaly.ipynb`
 2. 如需調整參數，編輯 `config/params.py`：
-   - `IQR_MULTIPLIER`（預設 3）
-   - `QUEUE_STUCK_PERCENTILE`（預設 99.0）
+   - `DEVICE_IQR_MULTIPLIER`（預設 3，device timeout: Q3 + N×IQR）
+   - `DB_IQR_MULTIPLIER`（預設 3，db lock: Q3 + N×IQR）
+   - `QUEUE_IQR_MULTIPLIER`（預設 4，queue stuck: Q3 + N×IQR）
    - `MIN_ORDERS_PER_DEVICE`（預設 20）
    - `MIN_ORDERS_PER_MODEL`（預設 30）
    - `MIN_DEVICE_THRESHOLD`（預設 20s）— device 閾值下限，避免 IQR≈0 時過度靈敏
@@ -157,7 +158,7 @@ User → Browser → Order Created → Queue → Consumer picks up
 | 輸出（報表檔案） | 看什麼 | 通過 | 需調整 |
 |------|--------|------|--------|
 | Threshold assignment | per-device / per-model / global 各幾台 | 三層都有 | 全部 global → MIN_ORDERS 太高 |
-| System anomalies 佔比 | `System anomalies: N (X%)` | 1% - 5% | > 10% → 提高 IQR_MULTIPLIER；< 1% → 降低 |
+| System anomalies 佔比 | `System anomalies: N (X%)` | 1% - 5% | > 10% → 提高 DEVICE/DB/QUEUE_IQR_MULTIPLIER；< 1% → 降低 |
 | Type breakdown | 各類異常筆數 | 3 種都有 | 某類過多 → 可能 MIN_*_THRESHOLD 太低 |
 | Label distribution | normal > 90% | normal > 90% | < 80% → 閾值太寬鬆 |
 | Anomaly by segment (`step2_anomaly_by_segment.png`) | 按 loc/system/threshold/timeline 分佈 | 分散 | 集中某 loc → 局部問題 |
@@ -169,7 +170,7 @@ User → Browser → Order Created → Queue → Consumer picks up
 
 **調參循環**（在 `config/params.py` 修改）：
 ```
-IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5    ← 更多異常    更少異常 →
+DEVICE/DB/QUEUE_IQR_MULTIPLIER: 2 → 2.5 → 3 → 4 → 5    ← 更多異常    更少異常 →
 MIN_DEVICE_THRESHOLD: 10 → 15 → 20 → 30  ← 更多 device_timeout  更少 →
 MIN_DB_THRESHOLD: 2 → 5 → 10             ← 更多 db_lock  更少 →
 ```
@@ -300,8 +301,9 @@ MIN_DB_THRESHOLD: 2 → 5 → 10             ← 更多 db_lock  更少 →
 | `CONTENTION_WINDOW_MINUTES` | 30 | 縮小 → 更嚴格 |
 | `CONTENTION_MIN_ORDERS` | 3 | 提高 → 更嚴格 |
 | `TOP_N_MODELS` | 15 | model 表格前幾名 |
-| `IQR_MULTIPLIER` | 3 | 提高 → 更少異常 |
-| `QUEUE_STUCK_PERCENTILE` | 99.0 | 提高 → 更嚴格 |
+| `DEVICE_IQR_MULTIPLIER` | 3 | device timeout: Q3 + N×IQR，提高 → 更嚴格 |
+| `DB_IQR_MULTIPLIER` | 3 | db lock: Q3 + N×IQR，提高 → 更嚴格 |
+| `QUEUE_IQR_MULTIPLIER` | 4 | queue stuck: Q3 + N×IQR，提高 → 更嚴格 |
 | `MIN_ORDERS_PER_DEVICE` | 20 | device 訂單 ≥ 此值才用 per-device IQR |
 | `MIN_ORDERS_PER_MODEL` | 30 | model 訂單 ≥ 此值才用 per-model IQR |
 | `MIN_DEVICE_THRESHOLD` | 20 | device 閾值下限（秒），防止 IQR≈0 過度靈敏 |
@@ -372,7 +374,7 @@ MIN_DB_THRESHOLD: 2 → 5 → 10             ← 更多 db_lock  更少 →
 ```
 perf-profiling/
 ├── config/
-│   ├── schema.yaml                    # 欄位定義
+│   ├── schema_orders.yaml                    # 欄位定義
 │   └── params.py                      # ← 所有參數（改這裡）
 ├── data/
 │   ├── orders.csv                     # ← 放真實資料

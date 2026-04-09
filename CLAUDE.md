@@ -18,7 +18,7 @@ User -> Browser -> Order Created -> Queue -> Consumer picks up
 ## 資料
 - `data/orders.csv` — 30,000 筆合成訂單資料（模擬真實分佈）
 - `data/orders_with_labels.csv` — 含隱藏標籤（驗證用）
-- `config/schema.yaml` — 完整欄位定義與分析角色
+- `config/schema_orders.yaml` — 完整欄位定義與分析角色
 
 ## 三層分析框架
 
@@ -64,7 +64,7 @@ Action: 回饋 user 或制定使用規範。
 perf-profiling/
 ├── CLAUDE.md              # 本文件
 ├── config/
-│   └── schema.yaml        # 欄位定義
+│   └── schema_orders.yaml        # 欄位定義
 ├── data/
 │   ├── orders.csv         # 分析用資料（換 real data 時替換此檔）
 │   └── orders_with_labels.csv  # 含標籤（驗證用，real data 不需要）
